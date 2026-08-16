@@ -377,6 +377,32 @@
           },
           "children": [
             {
+              "id": "reportedAt",
+              "type": "label",
+              "label": {
+                "en": "Last reported",
+                "no": "Sist rapportert"
+              },
+              "hint": {
+                "en": "When Nest last wrote a change about this unit — a few times a day, not on a schedule. Silence means nothing changed, not that the unit went quiet, so this bounds how old the readings are rather than proving they were re-checked.",
+                "no": "Da Nest sist skrev en endring om denne enheten — noen ganger i døgnet, ikke etter en fast plan. Stillhet betyr at ingenting endret seg, ikke at enheten er borte. Verdien sier altså hvor gamle avlesningene høyst er, ikke at de er sjekket på nytt."
+              },
+              "value": "—"
+            },
+            {
+              "id": "lastSelfTest",
+              "type": "label",
+              "label": {
+                "en": "Last audio self-test",
+                "no": "Siste lydtest"
+              },
+              "hint": {
+                "en": "The automatic horn and speaker test. Nest runs it about monthly.",
+                "no": "Den automatiske testen av horn og høyttaler. Nest kjører den omtrent månedlig."
+              },
+              "value": "—"
+            },
+            {
               "id": "checkSensors",
               "type": "label",
               "label": {

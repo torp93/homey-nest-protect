@@ -114,13 +114,23 @@ class ProtectDevice extends Homey.Device {
     const mark = (ok) => (ok ? '✓ OK' : '✗');
     const checks = state.checks || {};
 
+    // Lokal tid, ikke ISO. Denne leses av et menneske som vil vite om det var
+    // nylig, ikke av en maskin.
+    const when = (iso) => (iso
+      ? new Date(iso).toLocaleString(this.homey.i18n.getLanguage() === 'no' ? 'nb-NO' : 'en-GB', {
+        dateStyle: 'short', timeStyle: 'short', timeZone: this.homey.clock.getTimezone(),
+      })
+      : '—');
+
     const wanted = {
       serial: state.id || '—',
       model: state.model || '—',
       power: state.wired ? 'wired' : 'battery',
       software: state.softwareVersion || '—',
       replaceBy: state.replaceBy ? state.replaceBy.slice(0, 10) : '—',
-      lastTest: state.lastManualTest ? state.lastManualTest.slice(0, 10) : '—',
+      lastTest: when(state.lastManualTest),
+      lastSelfTest: when(state.lastAudioSelfTest),
+      reportedAt: when(state.reportedAt),
       checkSensors: mark(checks.sensors),
       checkAlarm: mark(checks.alarm),
       checkVoice: mark(checks.voice),
