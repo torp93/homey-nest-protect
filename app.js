@@ -15,6 +15,21 @@ const {
 // timen koster lite og fanger opp varslere som er lagt til eller flyttet.
 const RELAUNCH_INTERVAL_MS = 60 * 60 * 1000;
 
+// Hvor lenge forbindelsen må være nede før det er verdt å vekke noen. Et
+// kritisk varsel skal bety «gjør noe nå», og et nettverkshikk på fem sekunder
+// gjør ikke det — kommer de for ofte, slutter man å reagere på dem, og da
+// virker de ikke den dagen det gjelder. Appen fornyer innloggingen omtrent
+// hvert 50. minutt, så et brudd som overlever en time har overlevd appens eget
+// forsøk på å reparere seg selv.
+const OFFLINE_ALERT_MS = 60 * 60 * 1000;
+
+// Hvor lenge vi venter før vi prøver på nytt etter at Google har avvist
+// innloggingen. Lenge, fordi en trukket cookie ikke fikser seg selv og det
+// ikke er noe poeng i å mase. Men ikke aldri: en 401 kan også komme av at
+// Google strammer inn et øyeblikk, og en app som gir opp for godt på grunn av
+// det er ubrukelig som røykvarsler.
+const REAUTH_RETRY_MS = 30 * 60 * 1000;
+
 class NestProtectApp extends Homey.App {
   async onInit() {
     // Én forbindelse for hele appen. Sju enheter som hver holdt sin egen
@@ -29,6 +44,9 @@ class NestProtectApp extends Homey.App {
     this._connected = false;
     this._lastError = null;
     this._lastUpdate = null;
+    this._offlineTimer = null;
+    this._offlineSince = null;
+    this._offlineReported = false;
     this._stopped = false;
     this._launchedAt = 0;
 
@@ -37,7 +55,12 @@ class NestProtectApp extends Homey.App {
     // Nye verdier krever ny innlogging. Vi river ned og bygger opp igjen i
     // stedet for å forsøke å reparere en økt som tilhører en annen konto.
     this.homey.settings.on('set', (key) => {
-      if (key === SETTING_ISSUE_TOKEN || key === SETTING_COOKIE) this.restart();
+      if (key !== SETTING_ISSUE_TOKEN && key !== SETTING_COOKIE) return;
+      // Vår egen roterte cookie er ikke en endring brukeren gjorde, og skal
+      // ikke rive ned en fungerende økt.
+      if (key === SETTING_COOKIE
+        && this.homey.settings.get(SETTING_COOKIE) === this._writtenCookie) return;
+      this.restart();
     });
 
     this.start();
@@ -47,6 +70,7 @@ class NestProtectApp extends Homey.App {
   async onUninit() {
     this._stopped = true;
     if (this._abort) this._abort.abort();
+    if (this._offlineTimer) this.homey.clearTimeout(this._offlineTimer);
   }
 
   // ---- tilkobling ----
@@ -65,11 +89,12 @@ class NestProtectApp extends Homey.App {
       // Google roterer cookien ved hver innlogging. Uten at den skrives
       // tilbake, overlever ikke innloggingen en omstart av appen.
       onCredentials: async ({ cookie: rotated }) => {
-        // Sett direkte, ikke gjennom lytteren over: dette er samme økt, og en
-        // omstart her ville gitt en løkke av innlogginger.
-        this._suppressRestart = true;
+        // Verdien huskes slik at lytteren kan kjenne igjen vår egen skriving.
+        // Et flagg rundt await-en holdt ikke: hendelsen kommer når den kommer,
+        // og hadde flagget rukket å bli falskt igjen, ville appen startet på
+        // nytt hver gang Google roterte cookien — altså ved hver innlogging.
+        this._writtenCookie = rotated;
         await this.homey.settings.set(SETTING_COOKIE, rotated);
-        this._suppressRestart = false;
         this.log('Cookie rotert av Google og lagret');
       },
     });
@@ -88,7 +113,6 @@ class NestProtectApp extends Homey.App {
   }
 
   restart() {
-    if (this._suppressRestart) return;
     this.log('Innstillinger endret — kobler til på nytt');
     this._client = null;
     this._buckets = [];
@@ -123,12 +147,20 @@ class NestProtectApp extends Homey.App {
         attempt += 1;
         this.setConnected(false, error);
 
-        // En trukket eller utløpt cookie løser seg ikke ved å prøve igjen.
-        // Appen legger seg til å vente på nye innstillinger i stedet for å
-        // hamre på Google, slik forgjengeren gjorde i timevis.
+        // En trukket eller utløpt cookie løser seg sjelden ved å prøve igjen
+        // med en gang, så vi venter lenge. Men vi gir aldri helt opp: en app
+        // som stopper for godt fordi Google svarte 401 én gang, er en app som
+        // stille slutter å varsle om brann. Klienten nullstilles så
+        // innstillingene leses på nytt — kanskje har de blitt fikset i mellomtiden.
         if (error instanceof NestAuthError && error.retryable === false) {
-          this.error('Innloggingen er ikke lenger gyldig — venter på nye verdier', error.message);
-          return;
+          this.error(
+            `Google avviste innloggingen (${error.message}). `
+            + `Nytt forsøk om ${REAUTH_RETRY_MS / 60000} min.`,
+          );
+          this._client = null;
+          attempt = 0;
+          await this._sleep(REAUTH_RETRY_MS);
+          continue;
         }
 
         const wait = backoffMs(attempt);
@@ -201,9 +233,50 @@ class NestProtectApp extends Homey.App {
     this._connected = connected;
     this.log(connected ? 'Tilkoblet Nest' : `Mistet forbindelsen: ${this._lastError}`);
 
+    // Enhetene merkes utilgjengelige med en gang. Det er en stille beskjed i
+    // grensesnittet, ikke et varsel, og da er øyeblikkelig riktig.
     this.protect.emit('connection', connected);
+
+    if (connected) this._connectionRestored();
+    else this._connectionLost();
+  }
+
+  _connectionLost() {
+    if (this._offlineTimer) return;
+
+    this._offlineSince = Date.now();
+    this._offlineTimer = this.homey.setTimeout(() => {
+      this._offlineTimer = null;
+      // Kan ha kommet seg i mellomtiden uten at timeren ble ryddet.
+      if (this._connected) return;
+
+      this._offlineReported = true;
+      this.log(`Fortsatt frakoblet etter ${Math.round(OFFLINE_ALERT_MS / 60000)} min — varsler`);
+      this._connectionTrigger
+        .trigger({}, { state: 'offline' })
+        .catch((err) => this.error('Kunne ikke utløse tilkoblingskort', err));
+    }, OFFLINE_ALERT_MS);
+  }
+
+  _connectionRestored() {
+    if (this._offlineTimer) {
+      this.homey.clearTimeout(this._offlineTimer);
+      this._offlineTimer = null;
+    }
+
+    const downMs = this._offlineSince ? Date.now() - this._offlineSince : 0;
+    this._offlineSince = null;
+
+    // Bare hvis du faktisk ble varslet om bruddet. En gladmelding om et
+    // problem man aldri hørte om er bare støy.
+    if (!this._offlineReported) {
+      if (downMs > 0) this.log(`Kom tilbake etter ${Math.round(downMs / 1000)}s — ikke verdt et varsel`);
+      return;
+    }
+
+    this._offlineReported = false;
     this._connectionTrigger
-      .trigger({}, { state: connected ? 'online' : 'offline' })
+      .trigger({}, { state: 'online' })
       .catch((err) => this.error('Kunne ikke utløse tilkoblingskort', err));
   }
 
@@ -217,6 +290,10 @@ class NestProtectApp extends Homey.App {
       connected: this._connected,
       lastError: this._lastError,
       lastUpdate: this._lastUpdate,
+      // Siden varselet er forsinket, må siden kunne vise at noe er galt akkurat
+      // nå selv om telefonen ennå ikke har fått beskjed.
+      offlineSince: this._offlineSince ? new Date(this._offlineSince).toISOString() : null,
+      offlineReported: this._offlineReported,
       devices: [...this._states.values()].map(({ state, label }) => ({
         id: state.id,
         label,

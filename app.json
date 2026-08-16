@@ -176,8 +176,8 @@
           "no": "Forbindelsen til Nest ble [[connection_state]]"
         },
         "hint": {
-          "en": "Smoke alarms are silent for months at a time, so a broken connection looks exactly like a quiet house. Use this to be told instead.",
-          "no": "Røykvarslere er stille i månedsvis, så en brutt forbindelse ser nøyaktig ut som et rolig hus. Bruk dette for å få beskjed i stedet."
+          "en": "Smoke alarms are silent for months at a time, so a broken connection looks exactly like a quiet house. Offline only fires after the connection has been down for an hour, so a brief network hiccup does not wake you; online only fires if you were told about the outage.",
+          "no": "Røykvarslere er stille i månedsvis, så en brutt forbindelse ser nøyaktig ut som et rolig hus. Frakoblet utløses først når forbindelsen har vært nede i en time, så et kort nettverkshikk vekker deg ikke. Tilkoblet utløses bare hvis du faktisk fikk beskjed om bruddet."
         },
         "args": [
           {
