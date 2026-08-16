@@ -30,6 +30,14 @@ const OFFLINE_ALERT_MS = 60 * 60 * 1000;
 // det er ubrukelig som røykvarsler.
 const REAUTH_RETRY_MS = 30 * 60 * 1000;
 
+// Hvor mange feil på rad før vi mistenker at det ikke er nettverket, men
+// adressen vi ringer. Nest flytter transport-verten mellom czfeNN-maskiner
+// uten forvarsel, og en subscribe mot en vert som er tatt ut av drift feiler
+// like trofast hver gang. Uten dette prøver appen mot den samme døde adressen
+// helt til den timeplanlagte app_launch kommer og gir oss en ny — opptil en
+// time senere.
+const RELAUNCH_AFTER_FAILURES = 3;
+
 class NestProtectApp extends Homey.App {
   async onInit() {
     // Én forbindelse for hele appen. Sju enheter som hver holdt sin egen
@@ -161,6 +169,16 @@ class NestProtectApp extends Homey.App {
           attempt = 0;
           await this._sleep(REAUTH_RETRY_MS);
           continue;
+        }
+
+        // Etter noen feil på rad slutter vi å stole på transport-verten og
+        // henter alt på nytt. app_launch gir en fersk adresse, og det er den
+        // eneste veien ut når den gamle er tatt ut av drift.
+        if (attempt >= RELAUNCH_AFTER_FAILURES && this._launchedAt !== 0) {
+          this.error(`${attempt} feil på rad — henter ny transport-vert ved neste forsøk`);
+          this._launchedAt = 0;
+          // Klienten finnes ikke hvis feilen kom av manglende innstillinger.
+          if (this._client) this._client.invalidate();
         }
 
         const wait = backoffMs(attempt);
