@@ -78,6 +78,16 @@
     "xlarge": "/assets/images/xlarge.png"
   },
   "permissions": [],
+  "api": {
+    "getStatus": {
+      "method": "GET",
+      "path": "/status"
+    },
+    "testCredentials": {
+      "method": "POST",
+      "path": "/testCredentials"
+    }
+  },
   "flow": {
     "triggers": [
       {
