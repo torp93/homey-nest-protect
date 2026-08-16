@@ -6,5 +6,9 @@
   "0.1.1": {
     "en": "Recovers from a stale connection instead of retrying a dead address for up to an hour, which was behind the outages seen in testing. A brief drop no longer sends a critical notification; the connection has to stay down for an hour first. Clearer device artwork.",
     "no": "Henter en ny forbindelse i stedet for å prøve mot en død adresse i opptil en time, som lå bak avbruddene under testing. Et kort brudd gir ikke lenger kritisk varsel — forbindelsen må være nede i en time først. Tydeligere enhetsbilder."
+  },
+  "0.1.2": {
+    "en": "Device artwork now matches the icon shown on the device tiles.",
+    "no": "Enhetsbildene følger nå samme form som ikonet på enhetsflisene."
   }
 }
