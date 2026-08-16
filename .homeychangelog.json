@@ -2,5 +2,9 @@
   "0.1.0": {
     "en": "First release. Smoke, CO and heat alarms from Nest Protect, delivered the moment they happen rather than at the next poll. Also reports battery voltage, tamper, manual test, and the five self-test results. Google's supported API does not cover Nest Protect at all, so this app signs in the way the Nest app itself does.",
     "no": "Første utgivelse. Røyk-, CO- og varmealarmer fra Nest Protect, levert i det øyeblikket de skjer i stedet for ved neste henting. Rapporterer også batterispenning, om enheten er tatt av braketten, manuell test og de fem selvtestene. Googles offisielle API dekker ikke Nest Protect i det hele tatt, så appen logger inn slik Nest-appen selv gjør."
+  },
+  "0.1.1": {
+    "en": "Recovers from a stale connection instead of retrying a dead address for up to an hour, which was behind the outages seen in testing. A brief drop no longer sends a critical notification; the connection has to stay down for an hour first. Clearer device artwork.",
+    "no": "Henter en ny forbindelse i stedet for å prøve mot en død adresse i opptil en time, som lå bak avbruddene under testing. Et kort brudd gir ikke lenger kritisk varsel — forbindelsen må være nede i en time først. Tydeligere enhetsbilder."
   }
 }
