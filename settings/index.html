@@ -107,6 +107,7 @@
 
 <h3 data-i18n="settings.devices"></h3>
 <div class="card" id="devices"><div class="row"><span class="muted">—</span></div></div>
+<button class="action" id="refresh" data-i18n="settings.refresh"></button>
 
 <script type="text/javascript">
   function onHomeyReady(Homey) {
@@ -158,6 +159,18 @@
         busy(false);
         if (err) return show(err.message || String(err), false);
         show(T('settings.found', { count: result.deviceCount }), true);
+      });
+    });
+
+    // Tvinger appen til å hente alt på nytt. Nyttig når man vil se at kjeden
+    // virker uten å vente på at noe faktisk endrer seg hos Nest.
+    $('refresh').addEventListener('click', () => {
+      busy(true, T('settings.refreshing'));
+      Homey.api('POST', '/refresh', null, (err) => {
+        if (err) { busy(false); return show(err.message || String(err), false); }
+        // Hentingen tar noen sekunder, og statusen er ikke oppdatert før den
+        // er ferdig.
+        setTimeout(() => { busy(false); refresh(); show(T('settings.refreshed'), true); }, 6000);
       });
     });
 

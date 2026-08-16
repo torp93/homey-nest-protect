@@ -112,6 +112,41 @@ test('bevegelse rapporteres kun for nettdrevne enheter', () => {
   assert.strictEqual(occupied.alarm_motion, true);
 });
 
+test('manuell test slår ut mens den pågår', () => {
+  // Nest har ikke noe «tester nå»-flagg. En test som er startet, men ikke
+  // avsluttet, har start etter slutt.
+  const running = parseTopaz(withStatus(WIRED_HALLWAY, {
+    latest_manual_test_start_utc_secs: 1785605700,
+    latest_manual_test_end_utc_secs: 1785605613,
+  }));
+  assert.strictEqual(running.manualTestActive, true);
+  assert.strictEqual(toCapabilities(running).alarm_manual_test, true);
+});
+
+test('fullført test slår ikke ut', () => {
+  const done = parseTopaz(WIRED_HALLWAY);
+  assert.strictEqual(done.manualTestActive, false);
+  assert.strictEqual(toCapabilities(done).alarm_manual_test, false);
+});
+
+test('avbrutt test teller som ferdig', () => {
+  // Utenfor Kontor sto slik: start og slutt like, cancelled true. Uten
+  // likhetstilfellet ville den enheten stått i evig testmodus.
+  const cancelled = parseTopaz(withStatus(WIRED_HALLWAY, {
+    latest_manual_test_start_utc_secs: 1785672925,
+    latest_manual_test_end_utc_secs: 1785672925,
+    latest_manual_test_cancelled: true,
+  }));
+  assert.strictEqual(cancelled.manualTestActive, false);
+  assert.strictEqual(cancelled.lastManualTestCancelled, true);
+});
+
+test('manglende testfelter gir ikke testmodus', () => {
+  // Kontor-bøtta har ingen av feltene i det hele tatt.
+  assert.strictEqual(parseTopaz(BATTERY_OFFICE).manualTestActive, false);
+  assert.strictEqual(toCapabilities(parseTopaz({})).alarm_manual_test, false);
+});
+
 test('fjernet fra braketten gir sabotasjealarm', () => {
   const caps = toCapabilities(parseTopaz(
     withStatus(WIRED_HALLWAY, { removed_from_base: true }),

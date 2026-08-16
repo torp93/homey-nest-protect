@@ -8,6 +8,19 @@ const Homey = require('homey');
 const WAIT_TIMEOUT_MS = 30000;
 const WAIT_POLL_MS = 500;
 
+// Bevegelse kommer i tillegg, og bare på nettdrevne enheter. Lista deles med
+// device.js, som legger til capabilities som mangler på enheter paret før de
+// fantes.
+const BASE_CAPABILITIES = [
+  'alarm_smoke',
+  'alarm_co',
+  'alarm_heat',
+  'alarm_battery',
+  'alarm_tamper',
+  'alarm_manual_test',
+  'measure_voltage',
+];
+
 class ProtectDriver extends Homey.Driver {
   async onInit() {
     this.log('Nest Protect-driver startet');
@@ -34,8 +47,8 @@ class ProtectDriver extends Homey.Driver {
       // Bare nettdrevne varslere holder PIR-en våken. Legges capabilityen til
       // på de batteridrevne, står den evig false og ser ødelagt ut.
       capabilities: state.wired
-        ? ['alarm_smoke', 'alarm_co', 'alarm_heat', 'alarm_battery', 'alarm_tamper', 'measure_voltage', 'alarm_motion']
-        : ['alarm_smoke', 'alarm_co', 'alarm_heat', 'alarm_battery', 'alarm_tamper', 'measure_voltage'],
+        ? [...BASE_CAPABILITIES, 'alarm_motion']
+        : [...BASE_CAPABILITIES],
       settings: {
         serial: state.id,
         model: state.model || '—',
@@ -58,3 +71,4 @@ class ProtectDriver extends Homey.Driver {
 }
 
 module.exports = ProtectDriver;
+module.exports.BASE_CAPABILITIES = BASE_CAPABILITIES;

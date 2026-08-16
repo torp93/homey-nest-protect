@@ -2,6 +2,7 @@
 
 const Homey = require('homey');
 const { toCapabilities, warnings } = require('../../lib/topaz');
+const { BASE_CAPABILITIES } = require('./driver');
 
 class ProtectDevice extends Homey.Device {
   async onInit() {
@@ -46,6 +47,8 @@ class ProtectDevice extends Homey.Device {
     await this.setAvailable();
 
     const { state } = entry;
+    await this._migrate(state);
+
     const caps = toCapabilities(state);
 
     for (const [capability, value] of Object.entries(caps)) {
@@ -73,6 +76,22 @@ class ProtectDevice extends Homey.Device {
       .catch((error) => this.error('Kunne ikke sette energiprofil', error));
   }
 
+  // Enheter paret før en capability fantes får den lagt til her, i stedet for
+  // at du må fjerne og pare dem på nytt — det ville tatt med seg flowene de
+  // er brukt i.
+  async _migrate(state) {
+    const wanted = state.wired
+      ? [...BASE_CAPABILITIES, 'alarm_motion']
+      : BASE_CAPABILITIES;
+
+    for (const capability of wanted) {
+      if (this.hasCapability(capability)) continue;
+      await this.addCapability(capability)
+        .then(() => this.log(`La til ${capability}`))
+        .catch((error) => this.error(`Kunne ikke legge til ${capability}`, error));
+    }
+  }
+
   // Varselnivået («heads up») har ingen capability, fordi Homey ikke skiller
   // det fra full alarm. Vi utløser flow-kortet på overgangen i stedet.
   async _applyWarnings(state) {
@@ -90,6 +109,11 @@ class ProtectDevice extends Homey.Device {
   // Opplysninger som hører hjemme i enhetsinnstillingene, ikke som
   // capabilities: de endres nesten aldri og skal ikke lage grafer.
   async _applyInfo(state) {
+    // Samme fem sjekker som Nest-appen viser under «Last checked», så de to
+    // kan sammenlignes direkte når noe ser rart ut.
+    const mark = (ok) => (ok ? '✓ OK' : '✗');
+    const checks = state.checks || {};
+
     const wanted = {
       serial: state.id || '—',
       model: state.model || '—',
@@ -97,6 +121,11 @@ class ProtectDevice extends Homey.Device {
       software: state.softwareVersion || '—',
       replaceBy: state.replaceBy ? state.replaceBy.slice(0, 10) : '—',
       lastTest: state.lastManualTest ? state.lastManualTest.slice(0, 10) : '—',
+      checkSensors: mark(checks.sensors),
+      checkAlarm: mark(checks.alarm),
+      checkVoice: mark(checks.voice),
+      checkBattery: mark(checks.battery),
+      checkWifi: mark(checks.wifi),
     };
 
     const changed = Object.entries(wanted)

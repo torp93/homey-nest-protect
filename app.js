@@ -77,6 +77,16 @@ class NestProtectApp extends Homey.App {
     return this._client;
   }
 
+  // Tvungen ny innhenting. Uten denne må man vente på at Nest sender noe av
+  // seg selv, og det kan ta timer når alt er i orden — som er nettopp når man
+  // vil forsikre seg om at kjeden virker.
+  async refreshNow() {
+    this._launchedAt = 0;
+    // Bryter en subscribe som ellers kunne stått i ti minutter til.
+    if (this._abort) this._abort.abort();
+    this.log('Tvungen innhenting bestilt');
+  }
+
   restart() {
     if (this._suppressRestart) return;
     this.log('Innstillinger endret — kobler til på nytt');
@@ -146,7 +156,7 @@ class NestProtectApp extends Homey.App {
       signal: this._abort.signal,
     });
 
-    if (result.timedOut) return;
+    if (result.timedOut || result.aborted) return;
     if (result.reauthenticated) {
       this.log('Økten utløp under lytting — logger inn på nytt');
       return;
@@ -240,6 +250,10 @@ class NestProtectApp extends Homey.App {
     this.homey.flow
       .getConditionCard('is_connected')
       .registerRunListener(() => this._connected);
+
+    this.homey.flow
+      .getActionCard('refresh_now')
+      .registerRunListener(() => this.refreshNow());
 
     // Varselnivået har ingen capability å henge på, siden Homey ikke skiller
     // «nesten» fra «nå». Enheten utløser kortet selv når nivået endrer seg.

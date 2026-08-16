@@ -8,6 +8,11 @@ module.exports = {
     return homey.app.status();
   },
 
+  async refresh({ homey }) {
+    await homey.app.refreshNow();
+    return { ok: true };
+  },
+
   // Prøver verdiene før de lagres. Uten dette ville brukeren limt inn noe
   // nesten-riktig, lagret, og lurt på hvorfor det er stille — feilen dukker
   // ellers ikke opp før i appens logg.

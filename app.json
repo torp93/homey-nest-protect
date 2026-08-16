@@ -78,6 +78,28 @@
     "xlarge": "/assets/images/xlarge.png"
   },
   "permissions": [],
+  "capabilities": {
+    "alarm_manual_test": {
+      "type": "boolean",
+      "title": {
+        "en": "Manual test",
+        "no": "Manuell test"
+      },
+      "uiComponent": "sensor",
+      "getable": true,
+      "setable": false,
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "Manual test started",
+        "no": "Manuell test startet"
+      },
+      "insightsTitleFalse": {
+        "en": "Manual test finished",
+        "no": "Manuell test avsluttet"
+      },
+      "icon": "/assets/capability-icons/manual-test.svg"
+    }
+  },
   "api": {
     "getStatus": {
       "method": "GET",
@@ -86,6 +108,10 @@
     "testCredentials": {
       "method": "POST",
       "path": "/testCredentials"
+    },
+    "refresh": {
+      "method": "POST",
+      "path": "/refresh"
     }
   },
   "flow": {
@@ -177,6 +203,19 @@
         ]
       }
     ],
+    "actions": [
+      {
+        "id": "refresh_now",
+        "title": {
+          "en": "Fetch everything from Nest now",
+          "no": "Hent alt fra Nest nå"
+        },
+        "hint": {
+          "en": "Nest normally pushes changes as they happen, so this is rarely needed. Use it to confirm the connection works without waiting for something to change.",
+          "no": "Nest sender vanligvis endringer når de skjer, så dette trengs sjelden. Bruk det for å bekrefte at forbindelsen virker uten å vente på at noe endrer seg."
+        }
+      }
+    ],
     "conditions": [
       {
         "id": "is_connected",
@@ -201,6 +240,7 @@
         "alarm_heat",
         "alarm_battery",
         "alarm_tamper",
+        "alarm_manual_test",
         "measure_voltage"
       ],
       "capabilitiesOptions": {
@@ -324,6 +364,60 @@
               "label": {
                 "en": "Last manual test",
                 "no": "Siste manuelle test"
+              },
+              "value": "—"
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "label": {
+            "en": "Self-test",
+            "no": "Selvtest"
+          },
+          "children": [
+            {
+              "id": "checkSensors",
+              "type": "label",
+              "label": {
+                "en": "Sensors",
+                "no": "Sensorer"
+              },
+              "value": "—"
+            },
+            {
+              "id": "checkAlarm",
+              "type": "label",
+              "label": {
+                "en": "Alarm",
+                "no": "Alarm"
+              },
+              "value": "—"
+            },
+            {
+              "id": "checkVoice",
+              "type": "label",
+              "label": {
+                "en": "Voice",
+                "no": "Stemme"
+              },
+              "value": "—"
+            },
+            {
+              "id": "checkBattery",
+              "type": "label",
+              "label": {
+                "en": "Battery",
+                "no": "Batteri"
+              },
+              "value": "—"
+            },
+            {
+              "id": "checkWifi",
+              "type": "label",
+              "label": {
+                "en": "Wi-Fi",
+                "no": "Wi-Fi"
               },
               "value": "—"
             }
