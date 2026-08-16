@@ -14,5 +14,9 @@
   "0.1.3": {
     "en": "Device artwork in black on white.",
     "no": "Enhetsbilder i svart på hvitt."
+  },
+  "0.1.4": {
+    "en": "Device artwork is now a photo of the device on white, as the App Store guidelines require.",
+    "no": "Enhetsbildene er nå et foto av enheten på hvit bakgrunn, slik App Store-retningslinjene krever."
   }
 }

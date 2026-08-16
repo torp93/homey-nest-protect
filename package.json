@@ -1,6 +1,6 @@
 {
   "name": "com.thomastorp.nest-protect",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "Nest Protect for Homey Pro, over the legacy Nest API with real-time subscribe",
   "main": "app.js",
