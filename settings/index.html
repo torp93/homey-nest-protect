@@ -179,9 +179,24 @@
         if (err || !status) return;
 
         $('dot').className = 'dot' + (status.connected ? ' on' : '');
-        $('connText').textContent = status.connected
-          ? T('settings.connected')
-          : T('settings.disconnected') + (status.lastError ? ' — ' + status.lastError : '');
+
+        if (status.connected) {
+          $('connText').textContent = T('settings.connected');
+        } else {
+          let line = T('settings.disconnected')
+            + (status.lastError ? ' — ' + status.lastError : '');
+
+          // Varselet er forsinket med en time, så uten dette kan siden ikke
+          // skille «nettopp mistet» fra «nede lenge nok til at telefonen har
+          // fått beskjed».
+          if (status.offlineSince) {
+            const mins = Math.max(0, Math.round((Date.now() - new Date(status.offlineSince)) / 60000));
+            line += ' · ' + T('settings.downFor', { minutes: mins });
+            line += ' · ' + T(status.offlineReported ? 'settings.alerted' : 'settings.notAlertedYet');
+          }
+
+          $('connText').textContent = line;
+        }
 
         $('updated').textContent = T('settings.lastUpdate') + ': '
           + (status.lastUpdate
