@@ -1,6 +1,6 @@
 {
   "id": "com.thomastorp.nest-protect",
-  "version": "0.1.4",
+  "version": "1.0.0",
   "compatibility": ">=12.2.0",
   "sdk": 3,
   "platforms": [
