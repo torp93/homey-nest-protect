@@ -1,0 +1,33 @@
+{
+  "error": {
+    "missingIssueToken": "Issue token mangler. Kopier den fra nettleseren slik det står beskrevet i appinnstillingene.",
+    "badIssueToken": "Dette ser ikke ut som en Nest issue token. Den skal begynne med https://accounts.google.com/o/oauth2/iframerpc og inneholde login_hint.",
+    "missingCookie": "Cookien mangler. Kopier den fra nettleseren slik det står beskrevet i appinnstillingene.",
+    "badCookie": "Denne cookien har ingen __Secure-3PSID-verdi, og det er den økten hviler på.",
+    "notConfigured": "Legg inn issue token og cookie i appinnstillingene først.",
+    "noDevices": "Fant ingen Nest Protect på denne kontoen.",
+    "disconnected": "Ingen forbindelse til Nest.",
+    "deviceGone": "Denne enheten finnes ikke lenger på Nest-kontoen."
+  },
+  "settings": {
+    "title": "Nest Protect",
+    "intro": "Appen logger inn slik Nest-appen selv gjør, fordi Googles offisielle API ikke dekker Nest Protect i det hele tatt.",
+    "issueToken": "Issue token",
+    "cookie": "Cookie",
+    "warning": "Cookien er en full øktnøkkel for hele Google-kontoen, ikke et Nest-avgrenset token. Hold den unna skjermbilder og feilrapporter.",
+    "howto": "Slik henter du verdiene",
+    "save": "Lagre",
+    "test": "Test forbindelsen",
+    "testing": "Tester…",
+    "saved": "Lagret.",
+    "found": "Forbindelsen virker. Fant {{count}} enhet(er).",
+    "status": "Status",
+    "connected": "Tilkoblet Nest",
+    "disconnected": "Ikke tilkoblet",
+    "lastUpdate": "Sist oppdatert",
+    "never": "aldri",
+    "devices": "Enheter",
+    "wired": "nett",
+    "battery": "batteri"
+  }
+}

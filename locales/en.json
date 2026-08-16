@@ -1,0 +1,33 @@
+{
+  "error": {
+    "missingIssueToken": "The issue token is missing. Copy it from your browser as described in the app settings.",
+    "badIssueToken": "That does not look like a Nest issue token. It should start with https://accounts.google.com/o/oauth2/iframerpc and contain login_hint.",
+    "missingCookie": "The cookie is missing. Copy it from your browser as described in the app settings.",
+    "badCookie": "That cookie has no __Secure-3PSID value, which is the one the session depends on.",
+    "notConfigured": "Add your issue token and cookie in the app settings first.",
+    "noDevices": "No Nest Protect devices were found on this account.",
+    "disconnected": "No connection to Nest.",
+    "deviceGone": "This device is no longer on the Nest account."
+  },
+  "settings": {
+    "title": "Nest Protect",
+    "intro": "This app signs in the way the Nest app itself does, because Google's supported API does not cover Nest Protect at all.",
+    "issueToken": "Issue token",
+    "cookie": "Cookie",
+    "warning": "The cookie is a full Google account session credential, not a Nest-only token. Keep it out of screenshots and bug reports.",
+    "howto": "How to get these values",
+    "save": "Save",
+    "test": "Test connection",
+    "testing": "Testing…",
+    "saved": "Saved.",
+    "found": "Connection works. Found {{count}} device(s).",
+    "status": "Status",
+    "connected": "Connected to Nest",
+    "disconnected": "Not connected",
+    "lastUpdate": "Last update",
+    "never": "never",
+    "devices": "Devices",
+    "wired": "mains",
+    "battery": "battery"
+  }
+}

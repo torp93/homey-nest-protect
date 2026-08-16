@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Driveren må ha et annet motiv enn appen, ellers er de umulige å skille i
+       enhetslista. Dette er selve enheten: den avrundede firkanten med ringen. -->
+  <path fill="#000000" d="M74 34h108c22 0 40 18 40 40v108c0 22-18 40-40 40H74c-22 0-40-18-40-40V74c0-22 18-40 40-40zm0 20c-11 0-20 9-20 20v108c0 11 9 20 20 20h108c11 0 20-9 20-20V74c0-11-9-20-20-20H74z"/>
+  <path fill="#000000" d="M128 76c-28.7 0-52 23.3-52 52s23.3 52 52 52 52-23.3 52-52-23.3-52-52-52zm0 20c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32z"/>
+  <circle fill="#000000" cx="128" cy="128" r="13"/>
+</svg>

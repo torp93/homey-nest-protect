@@ -1,0 +1,133 @@
+
+<script type="text/javascript" src="/homey.js" data-origin="settings"></script>
+
+<style>
+  .card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .warn { background: #fff4e5; border-left: 4px solid #e08b00; padding: 12px; margin: 12px 0;
+          border-radius: 4px; font-size: 13px; line-height: 1.5; }
+  label { display: block; font-weight: 600; margin: 14px 0 4px; font-size: 13px; }
+  textarea { width: 100%; box-sizing: border-box; min-height: 76px; font-family: monospace;
+             font-size: 11px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+  .row { display: flex; gap: 8px; margin-top: 14px; }
+  .msg { margin-top: 12px; font-size: 13px; min-height: 18px; }
+  .msg.ok { color: #1a8a3a; }
+  .msg.bad { color: #c62828; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
+  .dot.on { background: #1a8a3a; }
+  .dot.off { background: #c62828; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  td { padding: 5px 0; border-bottom: 1px solid #eee; }
+  td.r { text-align: right; color: #666; }
+  details { margin-top: 10px; font-size: 13px; line-height: 1.6; }
+  summary { cursor: pointer; font-weight: 600; }
+  ol { padding-left: 20px; }
+  code { background: #f2f2f2; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+</style>
+
+<div class="card">
+  <p data-i18n="settings.intro"></p>
+
+  <div class="warn" data-i18n="settings.warning"></div>
+
+  <label for="issueToken" data-i18n="settings.issueToken"></label>
+  <textarea id="issueToken" spellcheck="false" autocomplete="off"></textarea>
+
+  <label for="cookie" data-i18n="settings.cookie"></label>
+  <textarea id="cookie" spellcheck="false" autocomplete="off"></textarea>
+
+  <div class="row">
+    <button id="test" class="homey-button-secondary" data-i18n="settings.test"></button>
+    <button id="save" class="homey-button-primary-full" data-i18n="settings.save"></button>
+  </div>
+
+  <div id="msg" class="msg"></div>
+
+  <details>
+    <summary data-i18n="settings.howto"></summary>
+    <ol>
+      <li>Open <code>https://home.nest.com</code> in Chrome and sign in with Google.</li>
+      <li>Open DevTools (F12), go to <b>Network</b>, and tick <b>Preserve log</b>.</li>
+      <li>Filter for <code>issueToken</code>. Open the request, copy the full
+          <b>Request URL</b> into the first field.</li>
+      <li>Filter for <code>oauth2/iframe</code>. In <b>Request Headers</b>, copy the
+          entire <b>cookie</b> value into the second field.</li>
+      <li>Close the tab, but do <b>not</b> sign out of Google — signing out invalidates
+          the cookie.</li>
+    </ol>
+  </details>
+</div>
+
+<div class="card">
+  <h3 data-i18n="settings.status"></h3>
+  <p id="conn"><span class="dot off"></span><span id="connText"></span></p>
+  <p id="updated" style="font-size:13px;color:#666"></p>
+  <table id="devices"></table>
+</div>
+
+<script type="text/javascript">
+  function onHomeyReady(Homey) {
+    const $ = (id) => document.getElementById(id);
+    const T = (key, vars) => Homey.__(key, vars);
+
+    for (const el of document.querySelectorAll('[data-i18n]')) {
+      el.textContent = T(el.getAttribute('data-i18n'));
+    }
+
+    function show(text, ok) {
+      const msg = $('msg');
+      msg.textContent = text;
+      msg.className = 'msg ' + (ok ? 'ok' : 'bad');
+    }
+
+    // Verdiene leses hver for seg. Et samlet objekt ville gjort at en halvferdig
+    // utfylling overskrev den andre verdien med tom streng.
+    Homey.get('issueToken', (err, value) => { if (!err && value) $('issueToken').value = value; });
+    Homey.get('cookie', (err, value) => { if (!err && value) $('cookie').value = value; });
+
+    $('save').addEventListener('click', () => {
+      Homey.set('issueToken', $('issueToken').value.trim(), () => {});
+      Homey.set('cookie', $('cookie').value.trim(), (err) => {
+        if (err) return show(err.message || String(err), false);
+        show(T('settings.saved'), true);
+        // Appen kobler til på nytt når verdiene endres, så statusen henger
+        // etter et øyeblikk.
+        setTimeout(refresh, 2500);
+      });
+    });
+
+    $('test').addEventListener('click', () => {
+      show(T('settings.testing'), true);
+      Homey.api('POST', '/testCredentials', {
+        issueToken: $('issueToken').value.trim(),
+        cookie: $('cookie').value.trim(),
+      }, (err, result) => {
+        if (err) return show(err.message || String(err), false);
+        show(T('settings.found', { count: result.deviceCount }), true);
+      });
+    });
+
+    function refresh() {
+      Homey.api('GET', '/status', null, (err, status) => {
+        if (err || !status) return;
+
+        $('conn').firstChild.className = 'dot ' + (status.connected ? 'on' : 'off');
+        $('connText').textContent = status.connected
+          ? T('settings.connected')
+          : T('settings.disconnected') + (status.lastError ? ' — ' + status.lastError : '');
+
+        $('updated').textContent = T('settings.lastUpdate') + ': '
+          + (status.lastUpdate ? new Date(status.lastUpdate).toLocaleString() : T('settings.never'));
+
+        $('devices').innerHTML = status.devices.map((d) =>
+          '<tr><td>' + d.label + '</td><td class="r">'
+          + (d.wired ? T('settings.wired') : T('settings.battery'))
+          + (d.voltage ? ' · ' + d.voltage.toFixed(2) + ' V' : '')
+          + '</td></tr>').join('');
+      });
+    }
+
+    refresh();
+    setInterval(refresh, 10000);
+    Homey.ready();
+  }
+</script>

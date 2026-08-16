@@ -1,0 +1,325 @@
+{
+  "id": "com.thomastorp.nest-protect",
+  "version": "0.1.0",
+  "compatibility": ">=12.2.0",
+  "sdk": 3,
+  "platforms": [
+    "local"
+  ],
+  "name": {
+    "en": "Nest Protect",
+    "no": "Nest Protect"
+  },
+  "description": {
+    "en": "Smoke, CO and heat alarms from Nest Protect, the moment they happen.",
+    "no": "Røyk-, CO- og varmealarmer fra Nest Protect, i det øyeblikket de skjer."
+  },
+  "category": [
+    "security"
+  ],
+  "tags": {
+    "en": [
+      "nest",
+      "protect",
+      "smoke",
+      "carbon monoxide",
+      "co",
+      "fire",
+      "alarm",
+      "google"
+    ],
+    "no": [
+      "nest",
+      "protect",
+      "røyk",
+      "røykvarsler",
+      "karbonmonoksid",
+      "co",
+      "brann",
+      "alarm",
+      "google"
+    ]
+  },
+  "brandColor": "#00AFD8",
+  "author": {
+    "name": "Thomas Torp"
+  },
+  "contributors": {
+    "developers": [
+      {
+        "name": "Thomas Torp"
+      }
+    ],
+    "translators": [
+      {
+        "name": "Thomas Torp"
+      }
+    ]
+  },
+  "contributing": {
+    "donate": {
+      "paypal": {
+        "username": "torpthomas"
+      },
+      "githubSponsors": {
+        "username": "torp93"
+      }
+    }
+  },
+  "bugs": {
+    "url": "https://github.com/torp93/homey-nest-protect/issues"
+  },
+  "source": "https://github.com/torp93/homey-nest-protect",
+  "support": "https://github.com/torp93/homey-nest-protect/issues",
+  "homeyCommunityTopicId": 0,
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "permissions": [],
+  "flow": {
+    "triggers": [
+      {
+        "id": "hazard_warning",
+        "title": {
+          "en": "A hazard warning started",
+          "no": "Et farevarsel startet"
+        },
+        "titleFormatted": {
+          "en": "!{{|Heads up}} for [[hazard]]",
+          "no": "Forvarsel om [[hazard]]"
+        },
+        "hint": {
+          "en": "Nest reports a rising level before it sounds a full alarm. This fires on that early warning, not on the alarm itself.",
+          "no": "Nest melder et stigende nivå før den uler for fullt. Dette kortet fyrer på forvarselet, ikke på selve alarmen."
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=protect"
+          },
+          {
+            "name": "hazard",
+            "type": "dropdown",
+            "values": [
+              {
+                "id": "smoke",
+                "title": {
+                  "en": "smoke",
+                  "no": "røyk"
+                }
+              },
+              {
+                "id": "co",
+                "title": {
+                  "en": "carbon monoxide",
+                  "no": "karbonmonoksid"
+                }
+              },
+              {
+                "id": "heat",
+                "title": {
+                  "en": "heat",
+                  "no": "varme"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "connection_changed",
+        "title": {
+          "en": "Connection to Nest changed",
+          "no": "Forbindelsen til Nest endret seg"
+        },
+        "titleFormatted": {
+          "en": "Connection to Nest went [[connection_state]]",
+          "no": "Forbindelsen til Nest ble [[connection_state]]"
+        },
+        "hint": {
+          "en": "Smoke alarms are silent for months at a time, so a broken connection looks exactly like a quiet house. Use this to be told instead.",
+          "no": "Røykvarslere er stille i månedsvis, så en brutt forbindelse ser nøyaktig ut som et rolig hus. Bruk dette for å få beskjed i stedet."
+        },
+        "args": [
+          {
+            "name": "connection_state",
+            "type": "dropdown",
+            "values": [
+              {
+                "id": "online",
+                "title": {
+                  "en": "online",
+                  "no": "tilkoblet"
+                }
+              },
+              {
+                "id": "offline",
+                "title": {
+                  "en": "offline",
+                  "no": "frakoblet"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "conditions": [
+      {
+        "id": "is_connected",
+        "title": {
+          "en": "Nest !{{is|is not}} connected",
+          "no": "Nest !{{er|er ikke}} tilkoblet"
+        }
+      }
+    ]
+  },
+  "drivers": [
+    {
+      "id": "protect",
+      "name": {
+        "en": "Nest Protect",
+        "no": "Nest Protect"
+      },
+      "class": "sensor",
+      "capabilities": [
+        "alarm_smoke",
+        "alarm_co",
+        "alarm_heat",
+        "alarm_battery",
+        "alarm_tamper",
+        "measure_voltage"
+      ],
+      "capabilitiesOptions": {
+        "measure_voltage": {
+          "title": {
+            "en": "Battery voltage",
+            "no": "Batterispenning"
+          },
+          "decimals": 3
+        },
+        "alarm_tamper": {
+          "title": {
+            "en": "Removed from base",
+            "no": "Tatt av braketten"
+          }
+        }
+      },
+      "energy": {
+        "batteries": [
+          "AA",
+          "AA",
+          "AA",
+          "AA",
+          "AA",
+          "AA"
+        ]
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "images": {
+        "small": "/drivers/protect/assets/images/small.png",
+        "large": "/drivers/protect/assets/images/large.png",
+        "xlarge": "/drivers/protect/assets/images/xlarge.png"
+      },
+      "pair": [
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "settings": [
+        {
+          "type": "group",
+          "label": {
+            "en": "Device",
+            "no": "Enhet"
+          },
+          "children": [
+            {
+              "id": "serial",
+              "type": "label",
+              "label": {
+                "en": "Serial number",
+                "no": "Serienummer"
+              },
+              "value": "—"
+            },
+            {
+              "id": "model",
+              "type": "label",
+              "label": {
+                "en": "Model",
+                "no": "Modell"
+              },
+              "value": "—"
+            },
+            {
+              "id": "power",
+              "type": "label",
+              "label": {
+                "en": "Power",
+                "no": "Strømkilde"
+              },
+              "value": "—"
+            },
+            {
+              "id": "software",
+              "type": "label",
+              "label": {
+                "en": "Software",
+                "no": "Programvare"
+              },
+              "value": "—"
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "label": {
+            "en": "Service",
+            "no": "Vedlikehold"
+          },
+          "children": [
+            {
+              "id": "replaceBy",
+              "type": "label",
+              "label": {
+                "en": "Replace by",
+                "no": "Byttes innen"
+              },
+              "hint": {
+                "en": "Nest Protect expires. After this date it stops being a certified alarm.",
+                "no": "Nest Protect har utløpsdato. Etter denne datoen er den ikke lenger en godkjent varsler."
+              },
+              "value": "—"
+            },
+            {
+              "id": "lastTest",
+              "type": "label",
+              "label": {
+                "en": "Last manual test",
+                "no": "Siste manuelle test"
+              },
+              "value": "—"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
