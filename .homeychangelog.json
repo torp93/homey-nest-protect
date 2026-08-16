@@ -10,5 +10,9 @@
   "0.1.2": {
     "en": "Device artwork now matches the icon shown on the device tiles.",
     "no": "Enhetsbildene følger nå samme form som ikonet på enhetsflisene."
+  },
+  "0.1.3": {
+    "en": "Device artwork in black on white.",
+    "no": "Enhetsbilder i svart på hvitt."
   }
 }
