@@ -16,6 +16,7 @@
     "cookie": "Cookie",
     "warning": "Cookien er en full øktnøkkel for hele Google-kontoen, ikke et Nest-avgrenset token. Hold den unna skjermbilder og feilrapporter.",
     "howto": "Slik henter du verdiene",
+    "saving": "Lagrer…",
     "save": "Lagre",
     "test": "Test forbindelsen",
     "testing": "Tester…",
@@ -26,6 +27,7 @@
     "disconnected": "Ikke tilkoblet",
     "lastUpdate": "Sist oppdatert",
     "never": "aldri",
+    "replaceBy": "byttes",
     "devices": "Enheter",
     "wired": "nett",
     "battery": "batteri"

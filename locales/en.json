@@ -16,6 +16,7 @@
     "cookie": "Cookie",
     "warning": "The cookie is a full Google account session credential, not a Nest-only token. Keep it out of screenshots and bug reports.",
     "howto": "How to get these values",
+    "saving": "Saving…",
     "save": "Save",
     "test": "Test connection",
     "testing": "Testing…",
@@ -26,6 +27,7 @@
     "disconnected": "Not connected",
     "lastUpdate": "Last update",
     "never": "never",
+    "replaceBy": "replace by",
     "devices": "Devices",
     "wired": "mains",
     "battery": "battery"
