@@ -20,19 +20,6 @@ the connection open and answers the moment something changes, so an alarm
 reaches Homey in the same second the unit starts sounding — not at the next
 poll interval.
 
-## Status
-
-Early. The protocol layer is implemented and verified against real hardware;
-the Homey driver is still being built.
-
-| Component | State |
-| --- | --- |
-| `lib/nest-auth.js` — cookie → token → JWT → session | verified against Google and Nest |
-| `lib/nest-client.js` — `app_launch` + `subscribe` | verified, 7 devices |
-| `lib/topaz.js` — device state → capabilities | 16 unit tests |
-| `lib/where.js` — room name resolution | 6 unit tests |
-| Driver, settings page, flow cards | not yet |
-
 ## Capabilities
 
 | Capability | Source |

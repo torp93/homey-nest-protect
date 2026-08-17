@@ -2,29 +2,54 @@
 
 const Homey = require('homey');
 const { toCapabilities, warnings } = require('../../lib/topaz');
-const { BASE_CAPABILITIES } = require('./driver');
+const { capabilitiesFor } = require('../../lib/protect-config');
 
 class ProtectDevice extends Homey.Device {
   async onInit() {
     this._id = String(this.getData().id);
-    this._warnings = { smoke: false, co: false, heat: false };
+    // Bevisst ukjent, ikke «alt rolig». Startet appen mens et varsel allerede
+    // pågikk, ville alt-usant fått den første avlesningen til å se ut som en
+    // ny overgang og utløst kortet uten at noe hadde skjedd.
+    this._warnings = null;
 
     // Appen holder én forbindelse for alle enhetene. Vi lytter i stedet for å
     // hente selv.
-    this._onStates = (states) => this._apply(states).catch(
-      (error) => this.error('Kunne ikke oppdatere', error),
-    );
+    // Oppdateringene settes i kø. Kommer to påfølgende svar fra Nest tett nok,
+    // ville to _apply-kjøringer overlappet — og siden varselsporingen leser og
+    // skriver samme felt, kunne den ene låst seg til en foreldet verdi og
+    // stilnet neste ekte varsel.
+    this._chain = Promise.resolve();
+    this._onStates = (states) => {
+      this._chain = this._chain
+        .then(() => this._apply(states))
+        .catch((error) => this.error('Kunne ikke oppdatere', error));
+    };
+
     this._onConnection = (connected) => {
-      if (connected) this.setAvailable().catch(() => {});
-      else this.setUnavailable(this.homey.__('error.disconnected')).catch(() => {});
+      if (!connected) {
+        this.setUnavailable(this.homey.__('error.disconnected'))
+          .catch((error) => this.error('Kunne ikke merke enheten utilgjengelig', error));
+        return;
+      }
+      // Tilkoblet igjen betyr ikke at akkurat denne varsleren er tilbake. Er
+      // den fjernet fra Nest-kontoen, skal den forbli utilgjengelig i stedet
+      // for å blinke tilgjengelig til neste avlesning oppdager det på nytt.
+      if (this.homey.app.states().has(this._id)) {
+        this.setAvailable()
+          .catch((error) => this.error('Kunne ikke merke enheten tilgjengelig', error));
+      }
     };
 
     this.homey.app.protect.on('states', this._onStates);
     this.homey.app.protect.on('connection', this._onConnection);
 
-    // Appen kan ha hentet data før enheten rakk å starte.
+    // Appen kan ha hentet data — eller mistet forbindelsen — før enheten rakk
+    // å starte. Uten dette går enheten glipp av en overgang som allerede har
+    // skjedd, og blir stående tilgjengelig med gamle verdier mens appen i
+    // virkeligheten ikke har kontakt.
     const known = this.homey.app.states();
     if (known.size > 0) this._onStates(known);
+    else if (this.homey.app.isConnected() === false) this._onConnection(false);
 
     this.log(`${this.getName()} klar`);
   }
@@ -80,11 +105,7 @@ class ProtectDevice extends Homey.Device {
   // at du må fjerne og pare dem på nytt — det ville tatt med seg flowene de
   // er brukt i.
   async _migrate(state) {
-    const wanted = state.wired
-      ? [...BASE_CAPABILITIES, 'alarm_motion']
-      : BASE_CAPABILITIES;
-
-    for (const capability of wanted) {
+    for (const capability of capabilitiesFor(state)) {
       if (this.hasCapability(capability)) continue;
       await this.addCapability(capability)
         .then(() => this.log(`La til ${capability}`))
@@ -97,13 +118,26 @@ class ProtectDevice extends Homey.Device {
   async _applyWarnings(state) {
     const current = warnings(state);
 
-    for (const hazard of ['smoke', 'co', 'heat']) {
-      if (current[hazard] && !this._warnings[hazard]) {
-        await this.homey.app.triggerWarning(this, hazard);
-      }
+    // Første avlesning etter oppstart er et utgangspunkt, ikke en hendelse.
+    if (this._warnings === null) {
+      this._warnings = current;
+      return;
     }
 
-    this._warnings = current;
+    for (const hazard of ['smoke', 'co', 'heat']) {
+      const before = this._warnings[hazard];
+      const now = current[hazard];
+
+      // Bare en ekte overgang fra kjent rolig til varsel teller. Er noen av
+      // dem ukjent, vet vi ikke om noe endret seg, og da varsler vi ikke.
+      if (now === true && before === false) {
+        await this.homey.app.triggerWarning(this, hazard);
+      }
+
+      // Ukjent nå betyr at vi beholder det vi visste sist, slik at et hull i
+      // dataene ikke i seg selv blir en overgang neste runde.
+      if (now !== null) this._warnings[hazard] = now;
+    }
   }
 
   // Opplysninger som hører hjemme i enhetsinnstillingene, ikke som
@@ -111,7 +145,13 @@ class ProtectDevice extends Homey.Device {
   async _applyInfo(state) {
     // Samme fem sjekker som Nest-appen viser under «Last checked», så de to
     // kan sammenlignes direkte når noe ser rart ut.
-    const mark = (ok) => (ok ? '✓ OK' : '✗');
+    // Tre utfall, ikke to. En sjekk Nest ikke har sagt noe om skal stå som
+    // ukjent, ikke som bestått og ikke som feilet.
+    const mark = (ok) => {
+      if (ok === true) return `✓ ${this.homey.__('settings.ok')}`;
+      if (ok === false) return `✗ ${this.homey.__('settings.failed')}`;
+      return '—';
+    };
     const checks = state.checks || {};
 
     // Lokal tid, ikke ISO. Denne leses av et menneske som vil vite om det var
@@ -125,7 +165,7 @@ class ProtectDevice extends Homey.Device {
     const wanted = {
       serial: state.id || '—',
       model: state.model || '—',
-      power: state.wired ? 'wired' : 'battery',
+      power: this.homey.__(state.wired ? 'settings.wired' : 'settings.battery'),
       software: state.softwareVersion || '—',
       replaceBy: state.replaceBy ? state.replaceBy.slice(0, 10) : '—',
       lastTest: when(state.lastManualTest),

@@ -5,7 +5,7 @@
   "description": "Nest Protect for Homey Pro, over the legacy Nest API with real-time subscribe",
   "main": "app.js",
   "scripts": {
-    "test": "node --test test/topaz.test.js test/where.test.js"
+    "test": "node --test test/topaz.test.js test/where.test.js test/nest-client.test.js test/subscribe-response.test.js test/credentials.test.js test/auth-token.test.js"
   },
   "author": "Thomas Torp",
   "license": "MIT",

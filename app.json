@@ -11,8 +11,8 @@
     "no": "Nest Protect"
   },
   "description": {
-    "en": "Smoke, CO and heat alarms from Nest Protect, the moment they happen.",
-    "no": "Røyk-, CO- og varmealarmer fra Nest Protect, i det øyeblikket de skjer."
+    "en": "Smoke, CO and heat alarms reach Homey the second they sound.",
+    "no": "Røyk-, CO- og varmealarmer når Homey i samme sekund de uler."
   },
   "category": [
     "security"
@@ -71,7 +71,6 @@
   },
   "source": "https://github.com/torp93/homey-nest-protect",
   "support": "https://github.com/torp93/homey-nest-protect/issues",
-  "homeyCommunityTopicId": 0,
   "images": {
     "small": "/assets/images/small.png",
     "large": "/assets/images/large.png",
@@ -123,12 +122,12 @@
           "no": "Et farevarsel startet"
         },
         "titleFormatted": {
-          "en": "!{{|Heads up}} for [[hazard]]",
+          "en": "Heads up for [[hazard]]",
           "no": "Forvarsel om [[hazard]]"
         },
         "hint": {
-          "en": "Nest reports a rising level before it sounds a full alarm. This fires on that early warning, not on the alarm itself.",
-          "no": "Nest melder et stigende nivå før den uler for fullt. Dette kortet fyrer på forvarselet, ikke på selve alarmen."
+          "en": "Fires as soon as Nest reports a rising level, including when it goes straight to a full alarm. The alarm capabilities themselves only turn on at full alarm.",
+          "no": "Fyrer så snart Nest melder et stigende nivå, også når det går rett til full alarm. Selve alarm-capabilityene slår først ut ved full alarm."
         },
         "args": [
           {
@@ -139,6 +138,10 @@
           {
             "name": "hazard",
             "type": "dropdown",
+            "title": {
+              "en": "Hazard",
+              "no": "Fare"
+            },
             "values": [
               {
                 "id": "smoke",
@@ -183,6 +186,10 @@
           {
             "name": "connection_state",
             "type": "dropdown",
+            "title": {
+              "en": "State",
+              "no": "Tilstand"
+            },
             "values": [
               {
                 "id": "online",

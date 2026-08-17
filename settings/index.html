@@ -85,12 +85,11 @@
 <details>
   <summary data-i18n="settings.howto"></summary>
   <ol>
-    <li>Open <code>home.nest.com</code> in Chrome and sign in with Google.</li>
-    <li>Open DevTools (F12) → <b>Network</b>, tick <b>Preserve log</b>, then reload.</li>
-    <li>Filter for <code>issueToken</code>. Copy the full <b>Request URL</b> into the first field.</li>
-    <li>Filter for <code>oauth2/iframe</code>. Under <b>Request Headers</b>, copy the whole
-        <b>cookie</b> value into the second field.</li>
-    <li>Close the tab, but do <b>not</b> sign out — signing out invalidates the cookie.</li>
+    <li data-i18n="settings.step1"></li>
+    <li data-i18n="settings.step2"></li>
+    <li data-i18n="settings.step3"></li>
+    <li data-i18n="settings.step4"></li>
+    <li data-i18n="settings.step5"></li>
   </ol>
 </details>
 
@@ -134,19 +133,36 @@
 
     // Leses hver for seg. Et samlet objekt ville latt en halvferdig utfylling
     // overskrive den andre verdien med tom streng.
+    let loadedCookie = '';
     Homey.get('issueToken', (err, value) => { if (!err && value) $('issueToken').value = value; });
-    Homey.get('cookie', (err, value) => { if (!err && value) $('cookie').value = value; });
+    Homey.get('cookie', (err, value) => {
+      if (err || !value) return;
+      $('cookie').value = value;
+      loadedCookie = value;
+    });
 
     $('save').addEventListener('click', () => {
       busy(true, T('settings.saving'));
       Homey.set('issueToken', $('issueToken').value.trim(), () => {});
-      Homey.set('cookie', $('cookie').value.trim(), (err) => {
+
+      const done = (err) => {
         busy(false);
         if (err) return show(err.message || String(err), false);
         show(T('settings.saved'), true);
         // Appen kobler til på nytt når verdiene endres, så statusen henger
         // etter noen sekunder.
         setTimeout(refresh, 3000);
+      };
+
+      // Appen roterer cookien selv. Ligger denne siden åpen når det skjer,
+      // holder feltet en verdi som allerede er utdatert — og å lagre den ville
+      // overskrevet den gjeldende med en foreldet.
+      const cookie = $('cookie').value.trim();
+      if (cookie === loadedCookie) return done(null);
+
+      Homey.set('cookie', cookie, (err) => {
+        if (!err) loadedCookie = cookie;
+        done(err);
       });
     });
 
@@ -203,15 +219,48 @@
             ? new Date(status.lastUpdate).toLocaleString()
             : T('settings.never'));
 
-        $('devices').innerHTML = status.devices.length === 0
-          ? '<div class="row"><span class="muted">—</span></div>'
-          : status.devices.map((d) => '<div class="row"><div class="grow">'
-            + d.label
-            + '<div class="sub">' + (d.model || '')
-            + ' · ' + (d.wired ? T('settings.wired') : T('settings.battery'))
-            + (d.replaceBy ? ' · ' + T('settings.replaceBy') + ' ' + d.replaceBy.slice(0, 7) : '')
-            + '</div></div><span class="val">'
-            + (d.voltage ? d.voltage.toFixed(2) + ' V' : '') + '</span></div>').join('');
+        // Bygget som noder, ikke som HTML-streng. Navn og modell kommer fra
+        // Nest-kontoen, altså utenfra, og settes inn på den ene siden i hele
+        // appen som har Google-øktcookien i et felt.
+        const list = $('devices');
+        list.textContent = '';
+
+        if (status.devices.length === 0) {
+          const row = document.createElement('div');
+          row.className = 'row';
+          const dash = document.createElement('span');
+          dash.className = 'muted';
+          dash.textContent = '—';
+          row.appendChild(dash);
+          list.appendChild(row);
+          return;
+        }
+
+        for (const d of status.devices) {
+          const row = document.createElement('div');
+          row.className = 'row';
+
+          const grow = document.createElement('div');
+          grow.className = 'grow';
+          grow.textContent = d.label || '';
+
+          const sub = document.createElement('div');
+          sub.className = 'sub';
+          sub.textContent = [
+            d.model || '',
+            d.wired ? T('settings.wired') : T('settings.battery'),
+            d.replaceBy ? T('settings.replaceBy') + ' ' + d.replaceBy.slice(0, 7) : '',
+          ].filter(Boolean).join(' · ');
+          grow.appendChild(sub);
+
+          const val = document.createElement('span');
+          val.className = 'val';
+          val.textContent = d.voltage ? d.voltage.toFixed(2) + ' V' : '';
+
+          row.appendChild(grow);
+          row.appendChild(val);
+          list.appendChild(row);
+        }
       });
     }
 

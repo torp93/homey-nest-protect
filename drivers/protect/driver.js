@@ -1,25 +1,12 @@
 'use strict';
 
 const Homey = require('homey');
+const { capabilitiesFor } = require('../../lib/protect-config');
 
 // Varslerne finnes allerede i appens tilstand når paringen åpnes, siden løkka
 // startet ved oppstart. Paringen henter derfor ikke noe selv — den venter bare
 // på at den første hentingen skal være ferdig.
 const WAIT_TIMEOUT_MS = 30000;
-const WAIT_POLL_MS = 500;
-
-// Bevegelse kommer i tillegg, og bare på nettdrevne enheter. Lista deles med
-// device.js, som legger til capabilities som mangler på enheter paret før de
-// fantes.
-const BASE_CAPABILITIES = [
-  'alarm_smoke',
-  'alarm_co',
-  'alarm_heat',
-  'alarm_battery',
-  'alarm_tamper',
-  'alarm_manual_test',
-  'measure_voltage',
-];
 
 class ProtectDriver extends Homey.Driver {
   async onInit() {
@@ -30,45 +17,66 @@ class ProtectDriver extends Homey.Driver {
     const app = this.homey.app;
     const states = await this._waitForStates(app);
 
-    if (states.size === 0) {
-      // Uten dette får brukeren en tom liste uten forklaring, og den vanlige
-      // årsaken er at innstillingene ikke er fylt ut ennå.
-      const status = app.status();
-      if (!status.configured) throw new Error(this.homey.__('error.notConfigured'));
-      throw new Error(status.lastError || this.homey.__('error.noDevices'));
-    }
+    if (states.size === 0) throw new Error(this._explainEmpty(app));
+
+    this.log(`Paring fant ${states.size} varsler(e)`);
 
     return [...states.values()].map(({ state, label }) => ({
       name: label,
       data: {
-        // Serienummeret følger enheten gjennom bytte av navn, rom og nettverk.
+        // Serienummeret følger enheten gjennom bytte av navn, rom og nettverk,
+        // så Homey kjenner den igjen som samme fysiske enhet.
         id: state.id,
       },
-      // Bare nettdrevne varslere holder PIR-en våken. Legges capabilityen til
-      // på de batteridrevne, står den evig false og ser ødelagt ut.
-      capabilities: state.wired
-        ? [...BASE_CAPABILITIES, 'alarm_motion']
-        : [...BASE_CAPABILITIES],
+      capabilities: capabilitiesFor(state),
       settings: {
         serial: state.id,
         model: state.model || '—',
-        power: state.wired ? 'wired' : 'battery',
+        power: this.homey.__(state.wired ? 'settings.wired' : 'settings.battery'),
       },
     }));
   }
 
-  async _waitForStates(app) {
-    const deadline = Date.now() + WAIT_TIMEOUT_MS;
+  // Hvorfor lista er tom, formulert slik at brukeren vet hva han skal gjøre.
+  // Den tekniske årsaken hører hjemme i loggen, ikke i en dialog midt i paring.
+  _explainEmpty(app) {
+    const status = app.status();
 
-    while (Date.now() < deadline) {
-      const states = app.states();
-      if (states.size > 0) return states;
-      await new Promise((resolve) => this.homey.setTimeout(resolve, WAIT_POLL_MS));
+    if (!status.configured) return this.homey.__('error.notConfigured');
+
+    if (!status.connected) {
+      if (status.lastError) this.error(`Paring uten forbindelse: ${status.lastError}`);
+      return this.homey.__('error.pairNoConnection');
     }
 
-    return app.states();
+    return this.homey.__('error.noDevices');
+  }
+
+  // Venter på at appen publiserer, i stedet for å polle. Har den allerede
+  // publisert, vet vi svaret med en gang og trenger ikke vente i det hele tatt.
+  _waitForStates(app) {
+    const known = app.states();
+    if (known.size > 0) return Promise.resolve(known);
+    if (app.status().lastUpdate) return Promise.resolve(known);
+
+    return new Promise((resolve) => {
+      let settled = false;
+
+      const finish = (states) => {
+        if (settled) return;
+        settled = true;
+        app.protect.off('states', onStates);
+        this.homey.clearTimeout(timer);
+        resolve(states);
+      };
+
+      const onStates = (states) => finish(states);
+      // Uten opprydding her ville hver avbrutte paring etterlatt en lytter.
+      const timer = this.homey.setTimeout(() => finish(app.states()), WAIT_TIMEOUT_MS);
+
+      app.protect.on('states', onStates);
+    });
   }
 }
 
 module.exports = ProtectDriver;
-module.exports.BASE_CAPABILITIES = BASE_CAPABILITIES;

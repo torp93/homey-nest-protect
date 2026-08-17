@@ -1,0 +1,4 @@
+# Holdes utenfor pakka som lastes opp til Homey. Testene og utviklerdokumentet
+# hører hjemme i repoet, ikke på en Homey Pro med knapp diskplass.
+test/
+README.md

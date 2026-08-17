@@ -38,6 +38,28 @@ const REAUTH_RETRY_MS = 30 * 60 * 1000;
 // time senere.
 const RELAUNCH_AFTER_FAILURES = 3;
 
+// Korteste tid mellom to subscribe-runder. Normalt henger forespørselen åpen i
+// minutter, men den kan også returnere med en gang — ved tidsavbrudd, avbrudd,
+// utløpt økt eller et tomt svar. Uten en bunn her ville løkka i den situasjonen
+// spinne så fort maskinen orker og hamre Nest.
+const MIN_SUBSCRIBE_GAP_MS = 2000;
+
+// Hvor lenge vi venter når kontoen svarer riktig, men ikke har noen Protect.
+// Uten dette ville løkka kalt app_launch om og om igjen uten pause, fordi
+// «ingen bøtter» ser ut som «ikke hentet ennå».
+const EMPTY_ACCOUNT_RETRY_MS = 5 * 60 * 1000;
+
+// Hvor lenge vi selv lar en subscribe stå før vi bryter den. Nest lukker
+// vanligvis først, men uten en egen frist kan en forbindelse som verken svarer
+// eller lukkes bli hengende til undici gir opp — og da som en uventet feil i
+// stedet for en normal runde.
+const SUBSCRIBE_DEADLINE_MS = 4 * 60 * 1000;
+
+// Hvor mange ganger på rad Nest får be om ny innlogging før vi regner det som
+// en feil og går i backoff. Én er normalt når et JWT utløper midt i en åpen
+// forbindelse; flere på rad betyr at noe ikke fester seg.
+const MAX_CONSECUTIVE_REAUTHS = 3;
+
 class NestProtectApp extends Homey.App {
   async onInit() {
     // Én forbindelse for hele appen. Sju enheter som hver holdt sin egen
@@ -49,7 +71,14 @@ class NestProtectApp extends Homey.App {
     this._buckets = [];
     this._whereMap = new Map();
     this._states = new Map();
-    this._connected = false;
+    // Ukjent, ikke frakoblet. Startet vi med `false`, ville den aller første
+    // mislykkede tilkoblingen ikke telle som en overgang — setConnected
+    // returnerer tidlig på uendret verdi. Da ble enhetene aldri merket
+    // utilgjengelige, timeren for frakoblet-varsel ble aldri startet, og
+    // varslerne ble stående med sist lagrede verdier som om alt var i orden.
+    // Nettopp den situasjonen oppstår når cookien er utløpt og Homey starter
+    // på nytt.
+    this._connected = null;
     this._lastError = null;
     this._lastUpdate = null;
     this._offlineTimer = null;
@@ -57,6 +86,7 @@ class NestProtectApp extends Homey.App {
     this._offlineReported = false;
     this._stopped = false;
     this._launchedAt = 0;
+    this._reauths = 0;
 
     this.registerFlowCards();
 
@@ -79,6 +109,8 @@ class NestProtectApp extends Homey.App {
     this._stopped = true;
     if (this._abort) this._abort.abort();
     if (this._offlineTimer) this.homey.clearTimeout(this._offlineTimer);
+    if (this._sleepTimer) this.homey.clearTimeout(this._sleepTimer);
+    this.wake();
   }
 
   // ---- tilkobling ----
@@ -115,8 +147,10 @@ class NestProtectApp extends Homey.App {
   // vil forsikre seg om at kjeden virker.
   async refreshNow() {
     this._launchedAt = 0;
-    // Bryter en subscribe som ellers kunne stått i ti minutter til.
+    // Bryter en subscribe som ellers kunne stått i minutter til, og vekker
+    // løkka hvis den sover i et gjenforsøksintervall.
     if (this._abort) this._abort.abort();
+    this.wake();
     this.log('Tvungen innhenting bestilt');
   }
 
@@ -125,7 +159,20 @@ class NestProtectApp extends Homey.App {
     this._client = null;
     this._buckets = [];
     this._launchedAt = 0;
+    this._reauths = 0;
+
+    // Nye innstillinger kan peke på en annen Nest-konto. Da hører hverken
+    // enhetene eller romnavnene hjemme lenger, og de må ut før den nye
+    // hentingen kommer — ellers ville en varsler fra forrige konto stått
+    // igjen som tilgjengelig med sine gamle verdier.
+    this._states = new Map();
+    this._whereMap = new Map();
+    this._lastUpdate = null;
+    this.protect.emit('states', this._states);
     if (this._abort) this._abort.abort();
+    // Nye verdier skal virke med en gang, ikke etter at et halvtimes
+    // gjenforsøksintervall har gått ut.
+    this.wake();
   }
 
   start() {
@@ -145,8 +192,18 @@ class NestProtectApp extends Homey.App {
         const stale = Date.now() - this._launchedAt > RELAUNCH_INTERVAL_MS;
         if (this._buckets.length === 0 || stale) {
           await this._launch(client);
+          // En konto uten Protect er ikke en feil, men den må ikke bli en tett
+          // løkke: uten bøtter treffer vi denne grenen igjen med en gang.
+          if (this._buckets.length === 0) {
+            this.setConnected(true);
+            await this._sleep(EMPTY_ACCOUNT_RETRY_MS);
+            continue;
+          }
         } else {
+          const started = Date.now();
           await this._listen(client);
+          const elapsed = Date.now() - started;
+          if (elapsed < MIN_SUBSCRIBE_GAP_MS) await this._sleep(MIN_SUBSCRIBE_GAP_MS - elapsed);
         }
 
         attempt = 0;
@@ -199,18 +256,38 @@ class NestProtectApp extends Homey.App {
 
   async _listen(client) {
     // Egen abort-kontroller slik at endrede innstillinger kan bryte en
-    // subscribe som ellers ville hengt i ti minutter til.
+    // subscribe som ellers ville hengt i minutter til. Fristen legges på vår
+    // egen kontroller, ikke som et konkurrerende signal: klienten bruker det
+    // vi sender inn i stedet for sitt eget, så uten dette hadde ingen frist
+    // vært i kraft i det hele tatt.
     this._abort = new AbortController();
+    const deadline = this.homey.setTimeout(() => this._abort.abort(), SUBSCRIBE_DEADLINE_MS);
 
-    const result = await client.subscribe(subscribeObjects(this._buckets), {
-      signal: this._abort.signal,
-    });
+    let result;
+    try {
+      result = await client.subscribe(subscribeObjects(this._buckets), {
+        signal: this._abort.signal,
+      });
+    } finally {
+      this.homey.clearTimeout(deadline);
+    }
 
     if (result.timedOut || result.aborted) return;
+
     if (result.reauthenticated) {
+      this._reauths += 1;
+      // Én ny innlogging er normalt: JWT-et varer en time, og en subscribe kan
+      // stå åpen når den utløper. Flere på rad betyr at innloggingen ikke
+      // fester seg, og da må det behandles som en feil — ellers blir det en
+      // løkke av innlogginger med bare sekunder mellom.
+      if (this._reauths >= MAX_CONSECUTIVE_REAUTHS) {
+        throw new Error(`Nest keeps rejecting the session (${this._reauths} times in a row)`);
+      }
       this.log('Økten utløp under lytting — logger inn på nytt');
       return;
     }
+
+    this._reauths = 0;
     if (result.buckets.length === 0) return;
 
     this._buckets = mergeBuckets(this._buckets, result.buckets);
@@ -218,8 +295,27 @@ class NestProtectApp extends Homey.App {
     this.publish();
   }
 
+  // Ventingen kan avbrytes. Uten det ville nye innstillinger eller et trykk på
+  // «hent nå» blitt liggende ubrukt i opptil en halvtime, fordi løkka sov i
+  // gjenforsøksintervallet etter en avvist innlogging.
   _sleep(ms) {
-    return new Promise((resolve) => this.homey.setTimeout(resolve, ms));
+    return new Promise((resolve) => {
+      this._wake = () => {
+        this.homey.clearTimeout(this._sleepTimer);
+        this._sleepTimer = null;
+        this._wake = null;
+        resolve();
+      };
+      this._sleepTimer = this.homey.setTimeout(() => {
+        this._sleepTimer = null;
+        this._wake = null;
+        resolve();
+      }, ms);
+    });
+  }
+
+  wake() {
+    if (this._wake) this._wake();
   }
 
   // ---- tilstand ut til enhetene ----
@@ -244,8 +340,15 @@ class NestProtectApp extends Homey.App {
     return this._states;
   }
 
+  // true, false, eller null før første forsøk er gjort. Enhetene spør om denne
+  // når de starter, siden de ellers går glipp av en tilkoblingsovergang som
+  // skjedde før de rakk å lytte.
+  isConnected() {
+    return this._connected;
+  }
+
   setConnected(connected, error = null) {
-    this._lastError = connected ? null : (error && error.message) || 'ukjent feil';
+    this._lastError = connected ? null : (error && error.message) || 'unknown error';
     if (this._connected === connected) return;
 
     this._connected = connected;
@@ -344,7 +447,9 @@ class NestProtectApp extends Homey.App {
 
     this.homey.flow
       .getConditionCard('is_connected')
-      .registerRunListener(() => this._connected);
+      // Eksplisitt boolsk: tilstanden er ukjent til første forsøk er gjort, og
+      // et flow-kort skal ikke få null tilbake.
+      .registerRunListener(() => this._connected === true);
 
     this.homey.flow
       .getActionCard('refresh_now')
@@ -352,7 +457,12 @@ class NestProtectApp extends Homey.App {
 
     // Varselnivået har ingen capability å henge på, siden Homey ikke skiller
     // «nesten» fra «nå». Enheten utløser kortet selv når nivået endrer seg.
-    this._warningTrigger = this.homey.flow.getTriggerCard('hazard_warning');
+    // getDeviceTriggerCard, ikke getTriggerCard: kortet har et device-argument
+    // i manifestet, og Homey velger kortklasse etter hvilken henter som
+    // brukes — ikke etter manifestet. Som vanlig trigger blir signaturen
+    // trigger(tokens, state), så enheten havnet i tokens, state ble tomt, og
+    // farevalget forsvant. Kortet kunne dermed aldri fyre, stille.
+    this._warningTrigger = this.homey.flow.getDeviceTriggerCard('hazard_warning');
     this._warningTrigger.registerRunListener(
       (args, state) => args.hazard === state.hazard,
     );
