@@ -46,5 +46,26 @@
     "failed": "Feil",
     "wired": "nett",
     "battery": "batteri"
+  },
+  "pair": {
+    "repairTitle": "Koble til Nest på nytt",
+    "repairIntro": "Økten mot Nest har løpt ut. Lim inn en fersk cookie for å koble til igjen.",
+    "repairScope": "Dette gjenoppretter alle Nest Protect på kontoen, ikke bare denne.",
+    "issueToken": "Issue token",
+    "cookie": "Cookie",
+    "cookiePlaceholder": "Erstatt denne med den nye cookie-verdien",
+    "test": "Test",
+    "save": "Lagre",
+    "testing": "Tester…",
+    "saving": "Lagrer…",
+    "testOk": "Forbindelsen virker. Fant __count__ enhet(er).",
+    "saved": "Lagret. Kobler til…",
+    "scriptError": "Noe gikk galt i denne visningen: ",
+    "howto": "Slik henter du en ny cookie",
+    "step1": "Åpne home.nest.com i Chrome og logg inn med Google.",
+    "step2": "Åpne DevTools med F12, gå til Network-fanen, huk av Preserve log, og last siden på nytt.",
+    "step3": "Filtrer på issueToken. Åpne den forespørselen og kopier hele Request URL inn i det første feltet over.",
+    "step4": "Filtrer på oauth2/iframe. Under Request Headers, kopier hele cookie-verdien inn i det andre feltet over.",
+    "step5": "Lukk fanen, men ikke logg ut av Google. Logger du ut, slutter cookien å virke."
   }
 }

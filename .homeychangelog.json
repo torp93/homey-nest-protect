@@ -2,5 +2,9 @@
   "1.0.1": {
     "en": "First release. Smoke, CO and heat alarms from Nest Protect, delivered the second they happen rather than at the next poll. Also reports battery voltage, tamper, manual test and the five self-test results. Google's supported API does not cover Nest Protect at all, so this app signs in the way the Nest app itself does.",
     "no": "Første utgivelse. Røyk-, CO- og varmealarmer fra Nest Protect, levert i samme sekund de skjer i stedet for ved neste henting. Rapporterer også batterispenning, om enheten er tatt av braketten, manuell test og de fem selvtestene. Googles offisielle API dekker ikke Nest Protect i det hele tatt, så appen logger inn slik Nest-appen selv gjør."
+  },
+  "1.1.0": {
+    "en": "Adds a Repair option on each Nest Protect. When the session with Nest expires the devices go unavailable, and Repair now lets you paste a fresh cookie straight from the device that is showing the problem, instead of going looking for the app settings. Reconnecting once restores every Protect on the account.",
+    "no": "Legger til Reparer på hver Nest Protect. Når økten mot Nest løper ut, blir enhetene utilgjengelige, og Reparer lar deg nå lime inn en fersk cookie rett fra enheten som viser problemet, i stedet for å lete deg fram til appinnstillingene. Én gjenoppretting fikser alle varslerne på kontoen."
   }
 }

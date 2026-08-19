@@ -1,0 +1,149 @@
+<!--
+  Reparasjonsvisning: ny innlogging mot Nest.
+
+  Åpnes fra enhetens meny: Reparer. Homey viser den knappen når enheten er
+  utilgjengelig, og det er nøyaktig tilstanden når cookien har utløpt — altså
+  akkurat der brukeren står når problemet oppstår, i stedet for inne i
+  appinnstillingene der ingen leter.
+
+  Legitimasjonen er app-global, så dette gjenoppretter alle varslerne samtidig.
+  Det står i teksten, slik at ingen tror de må reparere sju ganger.
+
+  Homey injiserer homey.js selv — ikke legg den inn her.
+-->
+<style>
+  .np { padding: 0 16px; line-height: 1.5; overflow-x: hidden; }
+  .np * { max-width: 100%; box-sizing: border-box; }
+  .np p.intro { margin: 0 0 4px; font-size: 0.92em; }
+  .np p.scope { margin: 0 0 14px; font-size: 0.85em; opacity: 0.7; }
+  .np label { display: block; margin: 14px 0 4px; font-size: 0.9em; opacity: 0.75; }
+  .np textarea { width: 100%; min-height: 74px; padding: 9px 10px;
+              font-family: ui-monospace, monospace; font-size: 0.72em; line-height: 1.4;
+              border: 1px solid rgba(128,128,128,0.4); border-radius: 6px;
+              background: transparent; color: inherit; resize: vertical; }
+  .np .buttons { display: flex; gap: 10px; margin-top: 18px; }
+  .np .buttons button { flex: 1; padding: 11px; font-size: 0.95em; border-radius: 6px;
+              cursor: pointer; border: 1px solid rgba(128,128,128,0.4);
+              background: transparent; color: inherit; }
+  .np .buttons button.primary { background: #1f8fff; border-color: #1f8fff; color: #fff; }
+  .np button[disabled] { opacity: 0.5; cursor: default; }
+  .np #result { margin-top: 16px; white-space: pre-wrap; font-size: 0.88em; min-height: 1.2em; }
+  .np #result.bad { color: #c0392b; }
+  .np #result.ok { color: #1a8a3c; }
+  .np details { margin-top: 16px; font-size: 0.85em; line-height: 1.55; }
+  .np summary { cursor: pointer; opacity: 0.75; }
+  .np ol { padding-left: 20px; margin: 8px 0 0; }
+  .np li { margin-bottom: 5px; }
+</style>
+
+<div class="np">
+  <p class="intro" id="intro"></p>
+  <p class="scope" id="scope"></p>
+
+  <label for="issueToken" id="issueTokenLabel"></label>
+  <textarea id="issueToken" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+
+  <label for="cookie" id="cookieLabel"></label>
+  <textarea id="cookie" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+
+  <div class="buttons">
+    <button type="button" id="test"></button>
+    <button type="button" id="save" class="primary"></button>
+  </div>
+
+  <div id="result"></div>
+
+  <details>
+    <summary id="howtoLabel"></summary>
+    <ol>
+      <li id="step1"></li>
+      <li id="step2"></li>
+      <li id="step3"></li>
+      <li id="step4"></li>
+      <li id="step5"></li>
+    </ol>
+  </details>
+</div>
+
+<script type="text/javascript">
+// Egen funksjon: alle visninger i en sesjon deler ett globalt skop, og to som
+// deklarerer samme navn med const dreper hele skriptet.
+(function () {
+  var resultEl = document.getElementById('result');
+
+  function show(text, cls) {
+    resultEl.textContent = text;
+    resultEl.className = cls || '';
+  }
+
+  function t(key) { return Homey.__('pair.' + key); }
+
+  window.onerror = function (message, source, line) {
+    show(t('scriptError') + message + ' (' + line + ')', 'bad');
+    return false;
+  };
+
+  try { Homey.setTitle(t('repairTitle')); } catch (error) { /* pynt */ }
+
+  var issueTokenEl = document.getElementById('issueToken');
+  var cookieEl = document.getElementById('cookie');
+  var testBtn = document.getElementById('test');
+  var saveBtn = document.getElementById('save');
+
+  document.getElementById('intro').textContent = t('repairIntro');
+  document.getElementById('scope').textContent = t('repairScope');
+  document.getElementById('issueTokenLabel').textContent = t('issueToken');
+  document.getElementById('cookieLabel').textContent = t('cookie');
+  document.getElementById('howtoLabel').textContent = t('howto');
+  testBtn.textContent = t('test');
+  saveBtn.textContent = t('save');
+  for (var i = 1; i <= 5; i++) {
+    document.getElementById('step' + i).textContent = t('step' + i);
+  }
+
+  // Begge feltene fylles ut. Et tomt cookie-felt så ut som om legitimasjonen
+  // var borte, og gjorde et trykk på Lagre til en feilmelding i stedet for en
+  // reparasjon. Marker alt i feltet og lim over med den nye verdien.
+  cookieEl.placeholder = t('cookiePlaceholder');
+  Homey.emit('getCredentials', null, function (error, value) {
+    if (error || !value) return;
+    if (value.issueToken) issueTokenEl.value = value.issueToken;
+    if (value.cookie) cookieEl.value = value.cookie;
+  });
+
+  function busy(on) {
+    testBtn.disabled = on;
+    saveBtn.disabled = on;
+  }
+
+  function values() {
+    return {
+      issueToken: issueTokenEl.value.trim(),
+      cookie: cookieEl.value.trim()
+    };
+  }
+
+  testBtn.addEventListener('click', function () {
+    busy(true);
+    show(t('testing'), '');
+    Homey.emit('testCredentials', values(), function (error, result) {
+      busy(false);
+      if (error) { show(error.message || String(error), 'bad'); return; }
+      show(t('testOk').replace('__count__', String(result.deviceCount)), 'ok');
+    });
+  });
+
+  saveBtn.addEventListener('click', function () {
+    busy(true);
+    show(t('saving'), '');
+    Homey.emit('saveCredentials', values(), function (error) {
+      busy(false);
+      if (error) { show(error.message || String(error), 'bad'); return; }
+      show(t('saved'), 'ok');
+      // Enheten er allerede lagt til; vi avslutter bare sesjonen. Appen kobler
+      // til på nytt av seg selv når innstillingene endres.
+      setTimeout(function () { Homey.done(); }, 1200);
+    });
+  });
+})();
+</script>

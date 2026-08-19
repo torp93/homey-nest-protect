@@ -46,5 +46,26 @@
     "failed": "Failed",
     "wired": "mains",
     "battery": "battery"
+  },
+  "pair": {
+    "repairTitle": "Reconnect to Nest",
+    "repairIntro": "Your session with Nest has ended. Paste a fresh cookie to reconnect.",
+    "repairScope": "This reconnects every Nest Protect on the account, not just this one.",
+    "issueToken": "Issue token",
+    "cookie": "Cookie",
+    "cookiePlaceholder": "Replace this with the new cookie value",
+    "test": "Test",
+    "save": "Save",
+    "testing": "Testing…",
+    "saving": "Saving…",
+    "testOk": "Connection works. Found __count__ device(s).",
+    "saved": "Saved. Reconnecting…",
+    "scriptError": "Something went wrong in this view: ",
+    "howto": "How to get a new cookie",
+    "step1": "Open home.nest.com in Chrome and sign in with Google.",
+    "step2": "Open DevTools with F12, go to the Network tab, tick Preserve log, then reload the page.",
+    "step3": "Filter for issueToken. Open that request and copy its full Request URL into the first field above.",
+    "step4": "Filter for oauth2/iframe. Under Request Headers, copy the entire cookie value into the second field above.",
+    "step5": "Close the tab, but do not sign out of Google. Signing out invalidates the cookie."
   }
 }
